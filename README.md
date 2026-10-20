@@ -1,6 +1,6 @@
 # Key Shift for Spotify (Windows)
 
-Key Shift changes Spotify's pitch while keeping the music tempo. The installer adds a **Key Shift** button directly to Spotify's interface and installs a small Windows app for audio processing and settings. Spicetify is not required.
+Key Shift changes Spotify's pitch while keeping the music tempo. One installer adds a **Key Shift** button and an integrated settings page inside Spotify. It starts the audio processor quietly in the background. Spicetify and other setup programs are not required.
 
 ## Download
 
@@ -26,11 +26,11 @@ To publish a GitHub Release, push a version tag such as `v1.0.0`. GitHub Actions
 
 ## Install
 
-Run `KeyShiftSetup.exe`, click **Установить**, and restart Spotify. The button appears in the play bar. Windows also adds Key Shift to its installed-apps list, where it can be removed later. If Spotify updates its interface files, run the installer again to restore the button.
+Run `KeyShiftSetup.exe`, click **Установить**, and restart Spotify. The button appears in the play bar; click it to open Key Shift's settings in Spotify, then use **Назад в Spotify** to return. The audio processor starts automatically and does not show a separate settings window. Windows adds Key Shift to its installed-apps list, where it can be removed later. If Spotify updates its interface files, run the installer again to restore the button.
 
 ## Use
 
-Open the app from the Start menu or click **Key Shift** in Spotify. Choose a shift from −12 to +12 semitones and enable Spotify audio processing. The app can stay in the system tray.
+Click **Key Shift** in Spotify. Choose a shift from −12 to +12 semitones and enable Spotify audio processing. The processor runs in the background and starts automatically with Windows.
 
 The companion captures only Spotify's process audio, changes its pitch, and sends it to Spotify's current output device. Keep Spotify Exclusive Mode off so Windows can capture the audio.
 

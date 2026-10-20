@@ -41,7 +41,7 @@ internal static class Program
         ApplicationConfiguration.Initialize();
         var controller = new AudioController();
         var api = new LocalApi(controller);
-        var showWindow = !args.Contains("--background", StringComparer.OrdinalIgnoreCase);
+        var showWindow = args.Contains("--window", StringComparer.OrdinalIgnoreCase);
         using var context = new TrayContext(controller, api, showWindow);
         Application.Run(context);
     }

@@ -14,8 +14,12 @@
   let backgroundFit = "stretch";
   let backgroundReady = Promise.resolve();
   let backgroundRouteTimer = null;
-  let activeModal = null;
-  let modalKeyListener = null;
+  let activeSettingsPage = null;
+  let settingsMainView = null;
+  let originalMainViewPosition = null;
+  let changedMainViewPosition = false;
+  let settingsKeyListener = null;
+  let openingSettings = false;
   const BUTTON_ID = "keyshift-open-button";
 
   function syncBackgroundRoute() {
@@ -222,48 +226,68 @@
   }
 
   function closeControls() {
-    if (modalKeyListener) {
-      document.removeEventListener("keydown", modalKeyListener, true);
-      modalKeyListener = null;
+    if (settingsKeyListener) {
+      document.removeEventListener("keydown", settingsKeyListener, true);
+      settingsKeyListener = null;
     }
-    activeModal?.remove();
-    activeModal = null;
+    activeSettingsPage?.remove();
+    activeSettingsPage = null;
+    if (settingsMainView && changedMainViewPosition && settingsMainView.style.position === "relative")
+      settingsMainView.style.position = originalMainViewPosition || "";
+    settingsMainView = null;
+    originalMainViewPosition = null;
+    changedMainViewPosition = false;
+    document.getElementById(BUTTON_ID)?.setAttribute("aria-expanded", "false");
   }
 
   function showControls(panel) {
     closeControls();
-    const overlay = document.createElement("div");
-    overlay.id = "keyshift-controls-overlay";
-    overlay.style.cssText = "position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.68);backdrop-filter:blur(6px)";
+    const mainView = document.querySelector('[data-testid="main-view-container"]') || document.querySelector("main");
+    const page = document.createElement("section");
+    page.id = "keyshift-settings-page";
+    page.setAttribute("aria-label", "Настройки Key Shift");
+    page.style.cssText = `position:${mainView ? "absolute" : "fixed"};${mainView ? "inset:0" : "inset:64px 0 90px"};z-index:1000;overflow:auto;box-sizing:border-box;background:#121212;color:#fff;font:14px/1.5 Arial,sans-serif`;
 
-    const card = document.createElement("section");
-    card.setAttribute("role", "dialog");
-    card.setAttribute("aria-modal", "true");
-    card.setAttribute("aria-label", "Key Shift");
-    card.style.cssText = "box-sizing:border-box;width:min(440px,100%);max-height:90vh;overflow:auto;padding:18px 20px 20px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:#242424;color:#fff;box-shadow:0 24px 80px rgba(0,0,0,.55);font:14px/1.45 Arial,sans-serif";
+    if (mainView) {
+      if (getComputedStyle(mainView).position === "static") {
+        originalMainViewPosition = mainView.style.position;
+        mainView.style.position = "relative";
+        changedMainViewPosition = true;
+      }
+      settingsMainView = mainView;
+    }
+
+    const content = document.createElement("div");
+    content.style.cssText = "box-sizing:border-box;width:min(820px,100%);margin:0 auto;padding:32px clamp(20px,5vw,48px) 48px";
 
     const header = document.createElement("header");
-    header.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px";
-    const title = document.createElement("strong");
+    header.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:20px;border-bottom:1px solid #333";
+    const titleGroup = document.createElement("div");
+    const eyebrow = document.createElement("p");
+    eyebrow.textContent = "НАСТРОЙКИ ПЛЕЕРА";
+    eyebrow.style.cssText = "margin:0 0 4px;color:#1ed760;font-size:11px;font-weight:700;letter-spacing:.12em";
+    const title = document.createElement("h1");
     title.textContent = "Key Shift";
-    title.style.cssText = "font-size:20px;font-weight:700";
-    const close = document.createElement("button");
-    close.type = "button";
-    close.textContent = "×";
-    close.setAttribute("aria-label", "Закрыть Key Shift");
-    close.style.cssText = "width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.08);color:#fff;font-size:24px;line-height:1;cursor:pointer";
-    close.addEventListener("click", closeControls);
-    header.append(title, close);
-    card.append(header, panel);
-    overlay.append(card);
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) closeControls();
-    });
-    modalKeyListener = (event) => { if (event.key === "Escape") closeControls(); };
-    document.addEventListener("keydown", modalKeyListener, true);
-    activeModal = overlay;
-    document.body.append(overlay);
-    close.focus();
+    title.style.cssText = "margin:0;font-size:30px;line-height:1.2;font-weight:700";
+    titleGroup.append(eyebrow, title);
+
+    const back = document.createElement("button");
+    back.type = "button";
+    back.textContent = "←  Назад в Spotify";
+    back.setAttribute("aria-label", "Вернуться к Spotify");
+    back.style.cssText = "border:0;border-radius:999px;padding:10px 14px;background:#282828;color:#fff;font:inherit;font-weight:600;cursor:pointer";
+    back.addEventListener("click", closeControls);
+    header.append(titleGroup, back);
+
+    panel.style.cssText = "box-sizing:border-box;width:100%;max-width:680px;margin-top:24px;color:#fff;font:14px/1.5 Arial,sans-serif";
+    content.append(header, panel);
+    page.append(content);
+    activeSettingsPage = page;
+    document.getElementById(BUTTON_ID)?.setAttribute("aria-expanded", "true");
+    settingsKeyListener = (event) => { if (event.key === "Escape") closeControls(); };
+    document.addEventListener("keydown", settingsKeyListener, true);
+    (mainView || document.body).append(page);
+    back.focus();
   }
 
   function makeKeyShiftButton() {
@@ -272,6 +296,7 @@
     button.type = "button";
     button.title = "Key Shift";
     button.setAttribute("aria-label", "Открыть Key Shift");
+    button.setAttribute("aria-expanded", "false");
     button.setAttribute("data-testid", "keyshift-open-button");
     button.style.cssText = "display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;height:32px;margin:0 8px;border:0;border-radius:50%;background:transparent;color:#b3b3b3;cursor:pointer;transition:color .15s,background .15s";
     button.innerHTML = '<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="currentColor"><path d="M4 7h9v2H4V7zm0 8h6v2H4v-2zm13-9h2v4h-2V6zm-3 5h8v2h-8v-2zm3 4h2v4h-2v-4zM9 5h2v6H9V5zm5 8h2v6h-2v-6z"/></svg>';
@@ -290,6 +315,12 @@
   }
 
   async function openControls() {
+    if (activeSettingsPage) {
+      closeControls();
+      return;
+    }
+    if (openingSettings) return;
+    openingSettings = true;
     await backgroundReady;
     const panel = document.createElement("div");
     panel.style.cssText = "padding:4px 0 2px;min-width:300px;color:#fff;font:14px Arial,sans-serif";
@@ -506,6 +537,7 @@
 
     panel.append(intro, toggleRow, row, slider, status, backgroundSection);
     showControls(panel);
+    openingSettings = false;
 
     updateValue();
     request("/status")
@@ -516,7 +548,7 @@
         status.textContent = data.message;
       })
       .catch(() => {
-        status.textContent = "Запусти Key Shift из меню «Пуск», чтобы подключить обработку звука.";
+        status.textContent = "Аудиообработчик ещё запускается. Подожди немного и повтори.";
       });
   }
 

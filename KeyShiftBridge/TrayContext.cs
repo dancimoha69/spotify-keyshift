@@ -38,7 +38,7 @@ internal sealed class TrayContext : ApplicationContext
             Icon = SystemIcons.Application,
             Text = "Key Shift — обработка Spotify",
             ContextMenuStrip = menu,
-            Visible = true,
+            Visible = showWindow,
         };
         _icon.DoubleClick += (_, _) => OpenWindow();
 

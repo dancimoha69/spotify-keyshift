@@ -220,7 +220,7 @@ internal static class InstallerService
             WriteState(state);
             RegisterUninstaller();
             RegisterStartup();
-            CreateShortcuts();
+            RemoveShortcuts();
         }
         catch
         {
@@ -236,7 +236,12 @@ internal static class InstallerService
         }
 
         progress.Report("Завершаю установку…");
-        Process.Start(new ProcessStartInfo(Path.Combine(AppPath, "KeyShift.exe")) { WorkingDirectory = AppPath });
+        Process.Start(new ProcessStartInfo(Path.Combine(AppPath, "KeyShift.exe"))
+        {
+            WorkingDirectory = AppPath,
+            Arguments = "--background",
+            WindowStyle = ProcessWindowStyle.Hidden,
+        });
     }
 
     public static async Task UninstallAsync(IProgress<string> progress)
@@ -534,7 +539,7 @@ internal static class InstallerService
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.0.1");
+        key.SetValue("DisplayVersion", "1.0.2");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));
@@ -550,35 +555,11 @@ internal static class InstallerService
         key?.SetValue(RunValueName, $"\"{Path.Combine(AppPath, "KeyShift.exe")}\" --background");
     }
 
-    private static void CreateShortcuts()
-    {
-        var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Microsoft", "Windows", "Start Menu", "Programs", "Key Shift");
-        Directory.CreateDirectory(programs);
-        CreateShortcut(Path.Combine(programs, "Key Shift.lnk"), Path.Combine(AppPath, "KeyShift.exe"), "", AppPath);
-    }
-
     private static void RemoveShortcuts()
     {
         var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "Microsoft", "Windows", "Start Menu", "Programs", "Key Shift");
         try { Directory.Delete(programs, recursive: true); } catch { }
-    }
-
-    private static void CreateShortcut(string path, string target, string arguments, string workingDirectory)
-    {
-        var shellType = Type.GetTypeFromProgID("WScript.Shell")
-            ?? throw new InvalidOperationException("Не удалось создать ярлык Key Shift.");
-        dynamic shell = Activator.CreateInstance(shellType)!;
-        dynamic shortcut = shell.CreateShortcut(path);
-        shortcut.TargetPath = target;
-        shortcut.Arguments = arguments;
-        shortcut.WorkingDirectory = workingDirectory;
-        shortcut.IconLocation = target;
-        shortcut.Description = "Управление тональностью Spotify";
-        shortcut.Save();
-        if (shortcut is IDisposable disposable) disposable.Dispose();
-        if (shell is IDisposable shellDisposable) shellDisposable.Dispose();
     }
 
     private static void RemoveRegistryEntries()
