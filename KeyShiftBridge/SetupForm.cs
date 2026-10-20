@@ -93,6 +93,7 @@ internal sealed class SetupForm : Form
         _cancel.Enabled = false;
         ControlBox = false;
         UseWaitCursor = true;
+        var acceptProgress = false;
 
         try
         {
@@ -101,13 +102,19 @@ internal sealed class SetupForm : Form
                 _status.Text = "Сначала полностью закрой Spotify, затем запусти установку снова.";
                 _action.Enabled = true;
                 _cancel.Enabled = true;
+                ControlBox = true;
                 return;
             }
 
-            var progress = new Progress<string>(text => _status.Text = text);
+            acceptProgress = true;
+            var progress = new Progress<string>(text =>
+            {
+                if (acceptProgress) _status.Text = text;
+            });
             if (_uninstall)
             {
                 await InstallerService.UninstallAsync(progress);
+                acceptProgress = false;
                 _finished = true;
                 _status.Text = "Key Shift удалён. Можно закрыть это окно.";
                 _action.Text = "Готово";
@@ -116,14 +123,20 @@ internal sealed class SetupForm : Form
             else
             {
                 await InstallerService.InstallAsync(progress);
+                acceptProgress = false;
                 _finished = true;
                 _status.Text = "Готово. Перезапусти Spotify — кнопка Key Shift появится в панели плеера.";
                 _action.Text = "Готово";
                 _cancel.Text = "Закрыть";
             }
+
+            _action.Enabled = true;
+            _cancel.Enabled = true;
+            ControlBox = true;
         }
         catch (Exception ex)
         {
+            acceptProgress = false;
             _status.Text = ex.Message;
             MessageBox.Show(this, ex.Message, _uninstall ? "Не удалось удалить Key Shift" : "Не удалось установить Key Shift",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -521,7 +534,7 @@ internal static class InstallerService
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.1.0");
+        key.SetValue("DisplayVersion", "1.0.1");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));
