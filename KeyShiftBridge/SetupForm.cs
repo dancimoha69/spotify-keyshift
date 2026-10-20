@@ -179,10 +179,6 @@ internal static class InstallerService
             var oldState = ReadState();
             if (oldState?.TargetPath is null)
                 throw new InvalidOperationException("Найдена старая версия Key Shift. Сначала удали её через Параметры Windows → Приложения.");
-            if (File.Exists(oldState.TargetPath) &&
-                HashFile(oldState.TargetPath).Equals(oldState.PatchedSha256, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Key Shift уже установлен. Кнопка должна быть в панели Spotify.");
-
             progress.Report("Обновляю подключение после изменения Spotify…");
             RestoreSpotifyPatch();
         }
@@ -539,7 +535,7 @@ internal static class InstallerService
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.0.3");
+        key.SetValue("DisplayVersion", "1.0.4");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));
