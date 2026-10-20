@@ -1,0 +1,17 @@
+# Local .NET SDK and NuGet cache
+.sdk/
+.nuget/
+dotnet-install.ps1
+
+# Build and distribution output
+**/bin/
+**/obj/
+release/
+
+# IDE and OS files
+.vs/
+.idea/
+*.user
+*.suo
+Thumbs.db
+Desktop.ini

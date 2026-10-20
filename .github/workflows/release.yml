@@ -1,0 +1,59 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build installer and archive
+        shell: pwsh
+        run: ./Build-Distribution.ps1
+
+      - name: Upload build files
+        uses: actions/upload-artifact@v7
+        with:
+          name: Key-Shift-Windows
+          path: |
+            release/Distribution/KeyShiftSetup.exe
+            release/KeyShift-Setup.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build files
+        uses: actions/download-artifact@v7
+        with:
+          name: Key-Shift-Windows
+          path: dist
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME `
+            --repo $env:GITHUB_REPOSITORY `
+            dist/Distribution/KeyShiftSetup.exe `
+            dist/KeyShift-Setup.zip `
+            --title "Key Shift $env:GITHUB_REF_NAME" `
+            --generate-notes
