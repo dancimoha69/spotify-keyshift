@@ -246,7 +246,7 @@
     const page = document.createElement("section");
     page.id = "keyshift-settings-page";
     page.setAttribute("aria-label", "Настройки Key Shift");
-    page.style.cssText = `position:${mainView ? "absolute" : "fixed"};${mainView ? "inset:0" : "inset:64px 0 90px"};z-index:1000;overflow:auto;box-sizing:border-box;background:#121212;color:#fff;font:14px/1.5 Arial,sans-serif`;
+    page.style.cssText = `position:${mainView ? "absolute" : "fixed"};${mainView ? "inset:0" : "inset:64px 0 90px"};z-index:1000;overflow:auto;overscroll-behavior:contain;box-sizing:border-box;background:#121212!important;background-image:none!important;opacity:1!important;backdrop-filter:none!important;color:#fff;font:14px/1.5 Arial,sans-serif`;
 
     if (mainView) {
       if (getComputedStyle(mainView).position === "static") {
@@ -261,7 +261,7 @@
     content.style.cssText = "box-sizing:border-box;width:min(820px,100%);margin:0 auto;padding:32px clamp(20px,5vw,48px) 48px";
 
     const header = document.createElement("header");
-    header.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:20px;border-bottom:1px solid #333";
+    header.style.cssText = "position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;background:#121212!important;opacity:1!important;border-bottom:1px solid #333";
     const titleGroup = document.createElement("div");
     const eyebrow = document.createElement("p");
     eyebrow.textContent = "НАСТРОЙКИ ПЛЕЕРА";
@@ -279,7 +279,7 @@
     back.addEventListener("click", closeControls);
     header.append(titleGroup, back);
 
-    panel.style.cssText = "box-sizing:border-box;width:100%;max-width:680px;margin-top:24px;color:#fff;font:14px/1.5 Arial,sans-serif";
+    panel.style.cssText = "box-sizing:border-box;width:100%;max-width:680px;margin-top:24px;padding:22px 24px;border-radius:8px;background:#181818!important;background-image:none!important;opacity:1!important;color:#fff;font:14px/1.5 Arial,sans-serif";
     content.append(header, panel);
     page.append(content);
     activeSettingsPage = page;

@@ -539,7 +539,7 @@ internal static class InstallerService
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.0.2");
+        key.SetValue("DisplayVersion", "1.0.3");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));
