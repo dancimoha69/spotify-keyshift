@@ -278,11 +278,13 @@ internal static class InstallerService
     {
         foreach (var root in CandidateInstallRoots().Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var extractedIndex = Path.Combine(root, "Apps", "xpui", "index.html");
-            if (File.Exists(extractedIndex)) return new SpotifyTarget(extractedIndex, IsSpaArchive: false);
-
+            // Spotify loads the packaged XPUI archive. The sibling xpui folder may
+            // be left behind by updates and is not necessarily used by the client.
             var spaArchive = Path.Combine(root, "Apps", "xpui.spa");
             if (File.Exists(spaArchive)) return new SpotifyTarget(spaArchive, IsSpaArchive: true);
+
+            var extractedIndex = Path.Combine(root, "Apps", "xpui", "index.html");
+            if (File.Exists(extractedIndex)) return new SpotifyTarget(extractedIndex, IsSpaArchive: false);
         }
         return null;
     }
@@ -590,7 +592,7 @@ internal static class InstallerService
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.0.7");
+        key.SetValue("DisplayVersion", "1.0.8");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));
