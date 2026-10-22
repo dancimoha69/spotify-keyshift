@@ -233,13 +233,15 @@ internal static class InstallerService
         }
 
         progress.Report("Завершаю установку…");
-        Process.Start(new ProcessStartInfo(Path.Combine(AppPath, "KeyShift.exe"))
-        {
-            WorkingDirectory = AppPath,
-            Arguments = "--background",
-            WindowStyle = ProcessWindowStyle.Hidden,
-        });
+        StartBackgroundApp();
     }
+
+    private static void StartBackgroundApp() => Process.Start(new ProcessStartInfo(Path.Combine(AppPath, "KeyShift.exe"))
+    {
+        WorkingDirectory = AppPath,
+        Arguments = "--background",
+        WindowStyle = ProcessWindowStyle.Hidden,
+    });
 
     public static async Task UninstallAsync(IProgress<string> progress)
     {
@@ -253,6 +255,23 @@ internal static class InstallerService
 
         progress.Report("Удаляю файлы приложения…");
         StartCleanupHelper();
+    }
+
+    public static void RefreshLauncher()
+    {
+        if (!File.Exists(StatePath))
+            throw new InvalidOperationException("Сначала установи Key Shift через KeyShiftSetup.exe.");
+
+        var currentSetup = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Не удалось определить файл установщика.");
+        Directory.CreateDirectory(AppPath);
+        File.Copy(currentSetup, Path.Combine(AppPath, "KeyShift.exe"), true);
+        File.Copy(currentSetup, Path.Combine(AppPath, "Uninstall.exe"), true);
+        ExtractResource("KeyShiftSetup.Payload.THIRD_PARTY_NOTICES.md", Path.Combine(AppPath, "THIRD_PARTY_NOTICES.md"));
+        RegisterUninstaller();
+        RegisterStartup();
+        CreateShortcuts();
+        StartBackgroundApp();
     }
 
     public static void CleanupAfterUninstall(string[] args)
@@ -592,7 +611,7 @@ internal static class InstallerService
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.0.8");
+        key.SetValue("DisplayVersion", "1.0.9");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));
@@ -617,8 +636,9 @@ internal static class InstallerService
             "Microsoft", "Windows", "Start Menu", "Programs");
         Directory.CreateDirectory(programs);
 
-        CreateShortcut(Path.Combine(desktop, "Spotify — Key Shift.lnk"), target);
-        CreateShortcut(Path.Combine(programs, "Spotify — Key Shift.lnk"), target);
+        var launcher = Path.Combine(AppPath, "KeyShift.exe");
+        CreateShortcut(Path.Combine(desktop, "Spotify — Key Shift.lnk"), launcher, target);
+        CreateShortcut(Path.Combine(programs, "Spotify — Key Shift.lnk"), launcher, target);
         RemoveLegacyShortcuts();
     }
 
@@ -651,7 +671,7 @@ internal static class InstallerService
         return null;
     }
 
-    private static void CreateShortcut(string shortcutPath, string target)
+    private static void CreateShortcut(string shortcutPath, string launcher, string spotifyExecutable)
     {
         var shellType = Type.GetTypeFromProgID("WScript.Shell")
             ?? throw new InvalidOperationException("Не удалось создать ярлык Key Shift.");
@@ -664,11 +684,11 @@ internal static class InstallerService
             shortcut = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [shortcutPath])
                 ?? throw new InvalidOperationException("Не удалось создать ярлык Key Shift.");
             var shortcutType = shortcut.GetType();
-            shortcutType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, [target]);
-            shortcutType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, [""]);
-            shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, [Path.GetDirectoryName(target)!]);
+            shortcutType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, [launcher]);
+            shortcutType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, [$"--launch-spotify \"{spotifyExecutable}\""]);
+            shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, [AppPath]);
             shortcutType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, ["Запустить Spotify с Key Shift"]);
-            shortcutType.InvokeMember("IconLocation", BindingFlags.SetProperty, null, shortcut, [$"{target},0"]);
+            shortcutType.InvokeMember("IconLocation", BindingFlags.SetProperty, null, shortcut, [$"{spotifyExecutable},0"]);
             shortcutType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
         }
         finally

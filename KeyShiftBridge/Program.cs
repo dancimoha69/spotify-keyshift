@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -11,6 +12,12 @@ internal static class Program
         if (args.Length > 0 && args[0].Equals("--cleanup", StringComparison.OrdinalIgnoreCase))
         {
             InstallerService.CleanupAfterUninstall(args);
+            return;
+        }
+
+        if (args.Length > 0 && args[0].Equals("--launch-spotify", StringComparison.OrdinalIgnoreCase))
+        {
+            LaunchSpotifyWithHelper(args);
             return;
         }
 
@@ -37,6 +44,12 @@ internal static class Program
             return;
         }
 
+        if (args.Any(a => a.Equals("--refresh-launcher", StringComparison.OrdinalIgnoreCase)))
+        {
+            InstallerService.RefreshLauncher();
+            return;
+        }
+
         var installedApp = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "KeyShiftBridge", "KeyShift.exe");
@@ -58,6 +71,24 @@ internal static class Program
         var api = new LocalApi(controller);
         using var context = new TrayContext(controller, api, showWindow: false);
         Application.Run(context);
+    }
+
+    private static void LaunchSpotifyWithHelper(string[] args)
+    {
+        if (args.Length < 2 || !File.Exists(args[1]))
+            throw new InvalidOperationException("Не удалось найти Spotify.exe для запуска.");
+
+        var appPath = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Не удалось определить Key Shift.exe.");
+        Process.Start(new ProcessStartInfo(appPath)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+            ArgumentList = { "--background" },
+        });
+
+        Process.Start(new ProcessStartInfo(args[1]) { UseShellExecute = true });
     }
 
     private sealed class FileProgress(string path) : IProgress<string>
