@@ -36,12 +36,24 @@ internal static class Program
         }
 
         using var mutex = new Mutex(true, "Local\\KeyShiftBridge", out var createdNew);
-        if (!createdNew) return;
+        var showWindow = args.Contains("--window", StringComparer.OrdinalIgnoreCase);
+        if (!createdNew)
+        {
+            if (showWindow && !ActivationPipe.RequestShow())
+            {
+                ApplicationConfiguration.Initialize();
+                MessageBox.Show(
+                    "Key Shift уже запущен, но окно не открылось. Попробуй ещё раз через несколько секунд.",
+                    "Key Shift",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            return;
+        }
 
         ApplicationConfiguration.Initialize();
         var controller = new AudioController();
         var api = new LocalApi(controller);
-        var showWindow = args.Contains("--window", StringComparer.OrdinalIgnoreCase);
         using var context = new TrayContext(controller, api, showWindow);
         Application.Run(context);
     }

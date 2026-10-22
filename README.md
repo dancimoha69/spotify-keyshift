@@ -26,7 +26,7 @@ To publish a GitHub Release, push a version tag such as `v1.0.0`. GitHub Actions
 
 ## Install
 
-Run `KeyShiftSetup.exe`, click **Установить**, and restart Spotify. The button appears in the play bar; click it to open Key Shift's settings in Spotify, then use **Назад в Spotify** to return. The audio processor starts automatically and does not show a separate settings window. Windows adds Key Shift to its installed-apps list, where it can be removed later. If Spotify updates its interface files, run the installer again to restore the button.
+Run `KeyShiftSetup.exe`, click **Установить**, and restart Spotify. The installer adds a **Key Shift** shortcut to the desktop and Start menu; opening it shows the companion settings window, even when Key Shift is already running in the background. The button also appears in Spotify's play bar; click it to open settings inside Spotify, then use **Назад в Spotify** to return. Windows adds Key Shift to its installed-apps list, where it can be removed later. If Spotify updates its interface files, run the installer again to restore the button.
 
 ## Use
 

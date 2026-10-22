@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -216,7 +217,7 @@ internal static class InstallerService
             WriteState(state);
             RegisterUninstaller();
             RegisterStartup();
-            RemoveShortcuts();
+            CreateShortcuts();
         }
         catch
         {
@@ -535,7 +536,7 @@ internal static class InstallerService
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.0.4");
+        key.SetValue("DisplayVersion", "1.0.5");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));
@@ -551,11 +552,58 @@ internal static class InstallerService
         key?.SetValue(RunValueName, $"\"{Path.Combine(AppPath, "KeyShift.exe")}\" --background");
     }
 
-    private static void RemoveShortcuts()
+    private static void CreateShortcuts()
     {
+        var target = Path.Combine(AppPath, "KeyShift.exe");
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "Microsoft", "Windows", "Start Menu", "Programs", "Key Shift");
-        try { Directory.Delete(programs, recursive: true); } catch { }
+        Directory.CreateDirectory(programs);
+
+        CreateShortcut(Path.Combine(desktop, "Key Shift.lnk"), target);
+        CreateShortcut(Path.Combine(programs, "Key Shift.lnk"), target);
+    }
+
+    private static void CreateShortcut(string shortcutPath, string target)
+    {
+        var shellType = Type.GetTypeFromProgID("WScript.Shell")
+            ?? throw new InvalidOperationException("Не удалось создать ярлык Key Shift.");
+        var shell = Activator.CreateInstance(shellType)
+            ?? throw new InvalidOperationException("Не удалось создать ярлык Key Shift.");
+        object? shortcut = null;
+
+        try
+        {
+            shortcut = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [shortcutPath])
+                ?? throw new InvalidOperationException("Не удалось создать ярлык Key Shift.");
+            var shortcutType = shortcut.GetType();
+            shortcutType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, [target]);
+            shortcutType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, ["--window"]);
+            shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, [AppPath]);
+            shortcutType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, ["Открыть Key Shift"]);
+            shortcutType.InvokeMember("IconLocation", BindingFlags.SetProperty, null, shortcut, [$"{target},0"]);
+            shortcutType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
+        }
+        finally
+        {
+            if (shortcut is not null && Marshal.IsComObject(shortcut)) Marshal.FinalReleaseComObject(shortcut);
+            if (Marshal.IsComObject(shell)) Marshal.FinalReleaseComObject(shell);
+        }
+    }
+
+    private static void RemoveShortcuts()
+    {
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Microsoft", "Windows", "Start Menu", "Programs", "Key Shift");
+        TryDeleteShortcut(Path.Combine(desktop, "Key Shift.lnk"));
+        TryDeleteShortcut(Path.Combine(programs, "Key Shift.lnk"));
+        try { if (Directory.Exists(programs) && !Directory.EnumerateFileSystemEntries(programs).Any()) Directory.Delete(programs); } catch { }
+    }
+
+    private static void TryDeleteShortcut(string path)
+    {
+        try { File.Delete(path); } catch { }
     }
 
     private static void RemoveRegistryEntries()

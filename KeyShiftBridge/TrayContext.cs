@@ -8,6 +8,7 @@ internal sealed class TrayContext : ApplicationContext
     private readonly AudioController _controller;
     private readonly LocalApi _api;
     private readonly MainForm _form;
+    private readonly ActivationPipe _activationPipe;
     private readonly NotifyIcon _icon;
     private readonly ToolStripMenuItem _status;
     private readonly ToolStripMenuItem _toggle;
@@ -21,6 +22,13 @@ internal sealed class TrayContext : ApplicationContext
         _api.Start();
         _form = new MainForm(controller);
         MainForm = _form;
+        _ = _form.Handle;
+        _activationPipe = new ActivationPipe(() =>
+        {
+            if (_form.IsDisposed || !_form.IsHandleCreated) return;
+            try { _form.BeginInvoke((Action)OpenWindow); } catch (InvalidOperationException) { }
+        });
+        _activationPipe.Start();
 
         var menu = new ContextMenuStrip();
         _status = new ToolStripMenuItem("Key Shift запущен") { Enabled = false };
@@ -53,6 +61,7 @@ internal sealed class TrayContext : ApplicationContext
     private void OpenWindow()
     {
         if (_form.IsDisposed) return;
+        _icon.Visible = true;
         _form.Show();
         if (_form.WindowState == FormWindowState.Minimized)
             _form.WindowState = FormWindowState.Normal;
@@ -83,6 +92,7 @@ internal sealed class TrayContext : ApplicationContext
         if (disposing)
         {
             _timer.Dispose();
+            _activationPipe.Dispose();
             _icon.Visible = false;
             _icon.Dispose();
             _form.Dispose();
