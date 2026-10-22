@@ -507,15 +507,58 @@ internal static class InstallerService
         if (appProcesses.Length == 0) return;
 
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-        try
+        Exception? lastFailure = null;
+        var disabled = false;
+        for (var attempt = 0; attempt < 3 && !disabled; attempt++)
         {
-            using var response = await client.PostAsJsonAsync("http://127.0.0.1:43817/enabled", new { enabled = false });
-            response.EnsureSuccessStatusCode();
+            try
+            {
+                var status = await ReadAudioProcessingStatusAsync(client);
+                if (status == false)
+                {
+                    disabled = true;
+                    break;
+                }
+
+                using var response = await client.PostAsJsonAsync("http://127.0.0.1:43817/enabled", new { enabled = false });
+                var responseBody = await response.Content.ReadAsStringAsync();
+                if (response.IsSuccessStatusCode)
+                {
+                    disabled = true;
+                    break;
+                }
+
+                lastFailure = new HttpRequestException(
+                    $"Local audio service returned {(int)response.StatusCode} {response.ReasonPhrase}. {responseBody}");
+
+                // A disable request can report an error after the audio controller has
+                // already stopped. Confirm its state before deciding to abort the update.
+                status = await ReadAudioProcessingStatusAsync(client);
+                if (status == false) disabled = true;
+            }
+            catch (Exception ex)
+            {
+                lastFailure = ex;
+                try
+                {
+                    if (await ReadAudioProcessingStatusAsync(client) == false)
+                        disabled = true;
+                }
+                catch (Exception statusException)
+                {
+                    lastFailure = statusException;
+                }
+            }
+
+            if (!disabled && attempt < 2)
+                await Task.Delay(250 * (attempt + 1));
         }
-        catch (Exception ex)
+
+        if (!disabled)
         {
             foreach (var process in appProcesses) process.Dispose();
-            throw new InvalidOperationException($"Не удалось безопасно выключить обработку звука. Закрой Key Shift и повтори удаление. {ex.Message}");
+            throw new InvalidOperationException(
+                $"Не удалось подтвердить, что обработка звука выключена. Закрой Key Shift и повтори установку. {lastFailure?.Message}");
         }
 
         foreach (var process in appProcesses)
@@ -530,13 +573,24 @@ internal static class InstallerService
         }
     }
 
+    private static async Task<bool?> ReadAudioProcessingStatusAsync(HttpClient client)
+    {
+        using var response = await client.GetAsync("http://127.0.0.1:43817/status");
+        if (!response.IsSuccessStatusCode) return null;
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        if (!document.RootElement.TryGetProperty("enabled", out var enabled) ||
+            enabled.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            return null;
+        return enabled.GetBoolean();
+    }
+
     private static void RegisterUninstaller()
     {
         using var key = Registry.CurrentUser.CreateSubKey(UninstallKeyPath, writable: true)
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.0.6");
+        key.SetValue("DisplayVersion", "1.0.7");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));

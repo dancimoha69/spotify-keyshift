@@ -6,7 +6,7 @@ namespace KeyShiftBridge;
 internal static class Program
 {
     [STAThread]
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         if (args.Length > 0 && args[0].Equals("--cleanup", StringComparison.OrdinalIgnoreCase))
         {
@@ -19,6 +19,21 @@ internal static class Program
         {
             ApplicationConfiguration.Initialize();
             Application.Run(new SetupForm(uninstall: true));
+            return;
+        }
+
+        if (args.Any(a => a.Equals("--install", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "KeyShift-install.log");
+            try
+            {
+                await InstallerService.InstallAsync(new FileProgress(logPath));
+            }
+            catch (Exception ex)
+            {
+                File.AppendAllText(logPath, $"{DateTimeOffset.Now:O} ERROR {ex}\r\n");
+                Environment.ExitCode = 1;
+            }
             return;
         }
 
@@ -43,5 +58,10 @@ internal static class Program
         var api = new LocalApi(controller);
         using var context = new TrayContext(controller, api, showWindow: false);
         Application.Run(context);
+    }
+
+    private sealed class FileProgress(string path) : IProgress<string>
+    {
+        public void Report(string value) => File.AppendAllText(path, $"{DateTimeOffset.Now:O} {value}\r\n");
     }
 }
