@@ -536,7 +536,7 @@ internal static class InstallerService
             ?? throw new InvalidOperationException("Не удалось добавить Key Shift в список установленных приложений.");
         var uninstaller = Path.Combine(AppPath, "Uninstall.exe");
         key.SetValue("DisplayName", "Key Shift for Spotify");
-        key.SetValue("DisplayVersion", "1.0.5");
+        key.SetValue("DisplayVersion", "1.0.6");
         key.SetValue("Publisher", "Key Shift");
         key.SetValue("InstallLocation", AppPath);
         key.SetValue("DisplayIcon", Path.Combine(AppPath, "KeyShift.exe"));
@@ -554,14 +554,45 @@ internal static class InstallerService
 
     private static void CreateShortcuts()
     {
-        var target = Path.Combine(AppPath, "KeyShift.exe");
+        var target = FindSpotifyExecutable()
+            ?? throw new InvalidOperationException("Не удалось найти Spotify.exe для создания ярлыка.");
         var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Microsoft", "Windows", "Start Menu", "Programs", "Key Shift");
+            "Microsoft", "Windows", "Start Menu", "Programs");
         Directory.CreateDirectory(programs);
 
-        CreateShortcut(Path.Combine(desktop, "Key Shift.lnk"), target);
-        CreateShortcut(Path.Combine(programs, "Key Shift.lnk"), target);
+        CreateShortcut(Path.Combine(desktop, "Spotify — Key Shift.lnk"), target);
+        CreateShortcut(Path.Combine(programs, "Spotify — Key Shift.lnk"), target);
+        RemoveLegacyShortcuts();
+    }
+
+    private static string? FindSpotifyExecutable()
+    {
+        foreach (var hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
+        foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+        {
+            try
+            {
+                using var baseKey = RegistryKey.OpenBaseKey(hive, view);
+                using var appPath = baseKey.OpenSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Spotify.exe");
+                var executable = appPath?.GetValue(null) as string;
+                if (!string.IsNullOrWhiteSpace(executable))
+                {
+                    var fullPath = Environment.ExpandEnvironmentVariables(executable.Trim().Trim('"'));
+                    if (File.Exists(fullPath)) return fullPath;
+                }
+            }
+            catch { }
+        }
+
+        foreach (var root in CandidateInstallRoots().Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var executable = Path.Combine(root, "Spotify.exe");
+            if (File.Exists(executable)) return executable;
+        }
+
+        return null;
     }
 
     private static void CreateShortcut(string shortcutPath, string target)
@@ -578,9 +609,9 @@ internal static class InstallerService
                 ?? throw new InvalidOperationException("Не удалось создать ярлык Key Shift.");
             var shortcutType = shortcut.GetType();
             shortcutType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, [target]);
-            shortcutType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, ["--window"]);
-            shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, [AppPath]);
-            shortcutType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, ["Открыть Key Shift"]);
+            shortcutType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, [""]);
+            shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, [Path.GetDirectoryName(target)!]);
+            shortcutType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, ["Запустить Spotify с Key Shift"]);
             shortcutType.InvokeMember("IconLocation", BindingFlags.SetProperty, null, shortcut, [$"{target},0"]);
             shortcutType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
         }
@@ -595,10 +626,25 @@ internal static class InstallerService
     {
         var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Microsoft", "Windows", "Start Menu", "Programs", "Key Shift");
+            "Microsoft", "Windows", "Start Menu", "Programs");
+        RemoveLegacyShortcuts();
+        TryDeleteShortcut(Path.Combine(programs, "Spotify — Key Shift.lnk"));
+        TryDeleteShortcut(Path.Combine(desktop, "Spotify — Key Shift.lnk"));
+    }
+
+    private static void RemoveLegacyShortcuts()
+    {
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        var programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Microsoft", "Windows", "Start Menu", "Programs");
         TryDeleteShortcut(Path.Combine(desktop, "Key Shift.lnk"));
-        TryDeleteShortcut(Path.Combine(programs, "Key Shift.lnk"));
-        try { if (Directory.Exists(programs) && !Directory.EnumerateFileSystemEntries(programs).Any()) Directory.Delete(programs); } catch { }
+        TryDeleteShortcut(Path.Combine(programs, "Key Shift", "Key Shift.lnk"));
+        try
+        {
+            var oldPrograms = Path.Combine(programs, "Key Shift");
+            if (Directory.Exists(oldPrograms) && !Directory.EnumerateFileSystemEntries(oldPrograms).Any()) Directory.Delete(oldPrograms);
+        }
+        catch { }
     }
 
     private static void TryDeleteShortcut(string path)
